@@ -1,13 +1,11 @@
 // See LICENSE for license details.
 
-package chisel3.core
-
-import scala.language.experimental.macros
+package chisel3.experimental
 
 import chisel3.internal._
-import chisel3.internal.Builder.pushCommand
-import chisel3.internal.firrtl._
-import chisel3.internal.sourceinfo.{SourceInfo}
+import chisel3.{Clock, Module, Reset}
+
+import scala.language.experimental.macros
 
 private[chisel3] final case class ClockAndReset(clock: Clock, reset: Reset)
 

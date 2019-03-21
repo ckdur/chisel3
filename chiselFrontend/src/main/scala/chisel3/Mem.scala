@@ -1,14 +1,13 @@
 // See LICENSE for license details.
 
-package chisel3.core
+package chisel3
+
+import chisel3.internal.Builder.pushCommand
+import chisel3.internal._
+import chisel3.internal.firrtl._
+import chisel3.internal.sourceinfo.{MemTransform, SourceInfo, SourceInfoTransform, UnlocatableSourceInfo}
 
 import scala.language.experimental.macros
-
-import chisel3.internal._
-import chisel3.internal.Builder.pushCommand
-import chisel3.internal.firrtl._
-import chisel3.internal.sourceinfo.{SourceInfo, SourceInfoTransform, UnlocatableSourceInfo, MemTransform}
-import chisel3.SourceInfoDoc
 
 object Mem {
   // scalastyle:off line.size.limit

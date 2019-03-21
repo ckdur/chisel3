@@ -1,12 +1,14 @@
 // See LICENSE for license details.
 
-package chisel3.core
+package chisel3.internal
 
-import chisel3.internal.ChiselException
+import chisel3._
+import chisel3.experimental.{BaseModule, EnumType, FixedPoint, RawModule, UnsafeEnum}
 import chisel3.internal.Builder.pushCommand
 import chisel3.internal.firrtl.{Connect, DefInvalid}
-import scala.language.experimental.macros
 import chisel3.internal.sourceinfo.SourceInfo
+
+import scala.language.experimental.macros
 
 /**
 * MonoConnect.connect executes a mono-directional connection element-wise.
@@ -32,7 +34,7 @@ import chisel3.internal.sourceinfo.SourceInfo
 * - Is a port of the current module or submodule of the current module
 */
 
-object MonoConnect {
+private[chisel3] object MonoConnect {
   // scalastyle:off method.name public.methods.have.type
   // These are all the possible exceptions that can be thrown.
   case class MonoConnectException(message: String) extends ChiselException(message)
@@ -159,7 +161,7 @@ object MonoConnect {
   // This function checks if element-level connection operation allowed.
   // Then it either issues it or throws the appropriate exception.
   def elemConnect(implicit sourceInfo: SourceInfo, connectCompileOptions: CompileOptions, sink: Element, source: Element, context_mod: RawModule): Unit = { // scalastyle:ignore line.size.limit
-    import BindingDirection.{Internal, Input, Output} // Using extensively so import these
+    import BindingDirection.{Input, Internal, Output} // Using extensively so import these
     // If source has no location, assume in context module
     // This can occur if is a literal, unbound will error previously
     val sink_mod: BaseModule   = sink.topBinding.location.getOrElse(throw UnwritableSinkException)

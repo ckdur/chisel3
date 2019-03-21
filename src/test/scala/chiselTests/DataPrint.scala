@@ -2,10 +2,9 @@
 
 package chiselTests
 
-import org.scalatest._
-
 import chisel3._
-import chisel3.experimental.{ChiselEnum, FixedPoint, RawModule, MultiIOModule}
+import chisel3.experimental.{ChiselEnum, FixedPoint, MultiIOModule, RawModule}
+import org.scalatest._
 
 class DataPrintSpec extends ChiselFlatSpec with Matchers {
   object EnumTest extends ChiselEnum {
@@ -19,8 +18,7 @@ class DataPrintSpec extends ChiselFlatSpec with Matchers {
 
     // Bundle literal constructor code, which will be auto-generated using macro annotations in
     // the future.
-    import chisel3.core.BundleLitBinding
-    import chisel3.internal.firrtl.{ULit, Width}
+    import chisel3.internal.BundleLitBinding
     // Full bundle literal constructor
     def Lit(aVal: UInt, bVal: Bool): BundleTest = { // scalastyle:ignore method.name
       val clone = cloneType

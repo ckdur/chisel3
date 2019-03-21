@@ -1,12 +1,14 @@
 // See LICENSE for license details.
 
-package chisel3.core
+package chisel3.internal
 
-import chisel3.internal.ChiselException
+import chisel3.experimental.{Analog, BaseModule, RawModule, attach}
 import chisel3.internal.Builder.pushCommand
 import chisel3.internal.firrtl.{Connect, DefInvalid}
-import scala.language.experimental.macros
 import chisel3.internal.sourceinfo._
+import chisel3.{CompileOptions, Data, DontCare, Element, ExplicitCompileOptions, Record, Vec}
+
+import scala.language.experimental.macros
 
 /**
 * BiConnect.connect executes a bidirectional connection element-wise.
@@ -22,7 +24,7 @@ import chisel3.internal.sourceinfo._
 *
 */
 
-object BiConnect {
+private[chisel3] object BiConnect {
   // scalastyle:off method.name public.methods.have.type
   // These are all the possible exceptions that can be thrown.
   case class BiConnectException(message: String) extends ChiselException(message)
@@ -209,7 +211,7 @@ object BiConnect {
   // This function checks if element-level connection operation allowed.
   // Then it either issues it or throws the appropriate exception.
   def elemConnect(implicit sourceInfo: SourceInfo, connectCompileOptions: CompileOptions, left: Element, right: Element, context_mod: RawModule): Unit = { // scalastyle:ignore line.size.limit cyclomatic.complexity method.length
-    import BindingDirection.{Internal, Input, Output} // Using extensively so import these
+    import BindingDirection.{Input, Internal, Output} // Using extensively so import these
     // If left or right have no location, assume in context module
     // This can occur if one of them is a literal, unbound will error previously
     val left_mod: BaseModule  = left.topBinding.location.getOrElse(context_mod)

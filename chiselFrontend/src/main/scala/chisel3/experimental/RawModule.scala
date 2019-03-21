@@ -1,16 +1,15 @@
 // See LICENSE for license details.
 
-package chisel3.core
+package chisel3.experimental
 
-import scala.collection.mutable.{ArrayBuffer, HashMap}
-import scala.collection.JavaConversions._
-import scala.language.experimental.macros
-
-import chisel3.internal._
+import chisel3._
 import chisel3.internal.Builder._
 import chisel3.internal.firrtl._
-import chisel3.internal.firrtl.{Command => _, _}
 import chisel3.internal.sourceinfo.UnlocatableSourceInfo
+import chisel3.internal.{MemoryPortBinding, OpBinding, PortBinding, RegBinding, WireBinding, _}
+
+import scala.collection.mutable.{ArrayBuffer, HashMap}
+import scala.language.experimental.macros
 
 /** Abstract base class for Modules that contain Chisel RTL.
   * This abstract base class is a user-defined module which does not include implicit clock and reset and supports
@@ -56,7 +55,7 @@ abstract class RawModule(implicit moduleCompileOptions: CompileOptions)
   }
 
 
-  private[core] override def generateComponent(): Component = { // scalastyle:ignore cyclomatic.complexity
+  private[chisel3] override def generateComponent(): Component = { // scalastyle:ignore cyclomatic.complexity
     require(!_closed, "Can't generate module more than once")
     _closed = true
 
@@ -102,7 +101,7 @@ abstract class RawModule(implicit moduleCompileOptions: CompileOptions)
     component
   }
 
-  private[core] def initializeInParent(parentCompileOptions: CompileOptions): Unit = {
+  private[chisel3] def initializeInParent(parentCompileOptions: CompileOptions): Unit = {
     implicit val sourceInfo = UnlocatableSourceInfo
 
     if (!parentCompileOptions.explicitInvalidate) {
@@ -129,7 +128,7 @@ abstract class MultiIOModule(implicit moduleCompileOptions: CompileOptions)
   // Setup ClockAndReset
   Builder.currentClockAndReset = Some(ClockAndReset(clock, reset))
 
-  private[core] override def initializeInParent(parentCompileOptions: CompileOptions): Unit = {
+  private[chisel3] override def initializeInParent(parentCompileOptions: CompileOptions): Unit = {
     implicit val sourceInfo = UnlocatableSourceInfo
 
     super.initializeInParent(parentCompileOptions)
@@ -201,7 +200,7 @@ abstract class LegacyModule(implicit moduleCompileOptions: CompileOptions)
     }
   }
 
-  private[core] override def generateComponent(): Component = {
+  private[chisel3] override def generateComponent(): Component = {
     _compatAutoWrapPorts()  // pre-IO(...) compatibility hack
 
     // Restrict IO to just io, clock, and reset
@@ -213,7 +212,7 @@ abstract class LegacyModule(implicit moduleCompileOptions: CompileOptions)
     super.generateComponent()
   }
 
-  private[core] override def initializeInParent(parentCompileOptions: CompileOptions): Unit = {
+  private[chisel3] override def initializeInParent(parentCompileOptions: CompileOptions): Unit = {
     // Don't generate source info referencing parents inside a module, since this interferes with
     // module de-duplication in FIRRTL emission.
     implicit val sourceInfo = UnlocatableSourceInfo

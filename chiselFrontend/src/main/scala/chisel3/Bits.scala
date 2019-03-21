@@ -1,16 +1,16 @@
 // See LICENSE for license details.
 
-package chisel3.core
+package chisel3
 
-import scala.language.experimental.macros
-import collection.mutable
-
-import chisel3.internal._
+import chisel3.experimental.{FixedPoint, RawModule}
 import chisel3.internal.Builder.{pushCommand, pushOp}
-import chisel3.internal.firrtl._
-import chisel3.internal.sourceinfo.{SourceInfo, DeprecatedSourceInfo, SourceInfoTransform, SourceInfoWhiteboxTransform,
-  UIntTransform}
+import chisel3.internal._
 import chisel3.internal.firrtl.PrimOp._
+import chisel3.internal.firrtl._
+import chisel3.internal.sourceinfo._
+
+import scala.collection.mutable
+import scala.language.experimental.macros
 
 // scalastyle:off method.name line.size.limit file.size.limit
 
@@ -30,7 +30,7 @@ abstract class Element extends Data {
     direction = ActualDirection.fromSpecified(resolvedDirection)
   }
 
-  private[core] override def topBindingOpt: Option[TopBinding] = super.topBindingOpt match {
+  private[chisel3] override def topBindingOpt: Option[TopBinding] = super.topBindingOpt match {
     // Translate Bundle lit bindings to Element lit bindings
     case Some(BundleLitBinding(litMap)) => litMap.get(this) match {
       case Some(litArg) => Some(ElementLitBinding(litArg))
@@ -39,13 +39,13 @@ abstract class Element extends Data {
     case topBindingOpt => topBindingOpt
   }
 
-  private[core] def litArgOption: Option[LitArg] = topBindingOpt match {
+  private[chisel3] def litArgOption: Option[LitArg] = topBindingOpt match {
     case Some(ElementLitBinding(litArg)) => Some(litArg)
     case _ => None
   }
 
   override def litOption: Option[BigInt] = litArgOption.map(_.num)
-  private[core] def litIsForcedWidth: Option[Boolean] = litArgOption.map(_.forcedWidth)
+  private[chisel3] def litIsForcedWidth: Option[Boolean] = litArgOption.map(_.forcedWidth)
 
   // provide bits-specific literal handling functionality here
   override private[chisel3] def ref: Arg = topBindingOpt match {
@@ -57,7 +57,7 @@ abstract class Element extends Data {
     case _ => super.ref
   }
 
-  private[core] def legacyConnect(that: Data)(implicit sourceInfo: SourceInfo): Unit = {
+  private[chisel3] def legacyConnect(that: Data)(implicit sourceInfo: SourceInfo): Unit = {
     // If the source is a DontCare, generate a DefInvalid for the sink,
     //  otherwise, issue a Connect.
     if (that == DontCare) {
@@ -107,7 +107,7 @@ sealed abstract class Bits(private[chisel3] val width: Width) extends Element wi
   // Arguments against: generates down to a FIRRTL UInt anyways
 
   // Only used for in a few cases, hopefully to be removed
-  private[core] def cloneTypeWidth(width: Width): this.type
+  private[chisel3] def cloneTypeWidth(width: Width): this.type
 
   def cloneType: this.type = cloneTypeWidth(width)
 
@@ -240,25 +240,25 @@ sealed abstract class Bits(private[chisel3] val width: Width) extends Element wi
   final def do_apply(x: BigInt, y: BigInt)(implicit sourceInfo: SourceInfo, compileOptions: CompileOptions): UInt =
     apply(castToInt(x, "High index"), castToInt(y, "Low index"))
 
-  private[core] def unop[T <: Data](sourceInfo: SourceInfo, dest: T, op: PrimOp): T = {
+  private[chisel3] def unop[T <: Data](sourceInfo: SourceInfo, dest: T, op: PrimOp): T = {
     requireIsHardware(this, "bits operated on")
     pushOp(DefPrim(sourceInfo, dest, op, this.ref))
   }
-  private[core] def binop[T <: Data](sourceInfo: SourceInfo, dest: T, op: PrimOp, other: BigInt): T = {
+  private[chisel3] def binop[T <: Data](sourceInfo: SourceInfo, dest: T, op: PrimOp, other: BigInt): T = {
     requireIsHardware(this, "bits operated on")
     pushOp(DefPrim(sourceInfo, dest, op, this.ref, ILit(other)))
   }
-  private[core] def binop[T <: Data](sourceInfo: SourceInfo, dest: T, op: PrimOp, other: Bits): T = {
+  private[chisel3] def binop[T <: Data](sourceInfo: SourceInfo, dest: T, op: PrimOp, other: Bits): T = {
     requireIsHardware(this, "bits operated on")
     requireIsHardware(other, "bits operated on")
     pushOp(DefPrim(sourceInfo, dest, op, this.ref, other.ref))
   }
-  private[core] def compop(sourceInfo: SourceInfo, op: PrimOp, other: Bits): Bool = {
+  private[chisel3] def compop(sourceInfo: SourceInfo, op: PrimOp, other: Bits): Bool = {
     requireIsHardware(this, "bits operated on")
     requireIsHardware(other, "bits operated on")
     pushOp(DefPrim(sourceInfo, Bool(), op, this.ref, other.ref))
   }
-  private[core] def redop(sourceInfo: SourceInfo, op: PrimOp): Bool = {
+  private[chisel3] def redop(sourceInfo: SourceInfo, op: PrimOp): Bool = {
     requireIsHardware(this, "bits operated on")
     pushOp(DefPrim(sourceInfo, Bool(), op, this.ref))
   }
@@ -639,7 +639,7 @@ abstract trait Num[T <: Data] {
   * @define expandingWidth @note The width of the returned $coll is `width of this` + `1`.
   * @define constantWidth  @note The width of the returned $coll is unchanged, i.e., `width of this`.
   */
-sealed class UInt private[core] (width: Width) extends Bits(width) with Num[UInt] {
+sealed class UInt private[chisel3] (width: Width) extends Bits(width) with Num[UInt] {
   override def toString: String = {
     val bindingString = litOption match {
       case Some(value) => s"($value)"
@@ -648,10 +648,10 @@ sealed class UInt private[core] (width: Width) extends Bits(width) with Num[UInt
     s"UInt$width$bindingString"
   }
 
-  private[core] override def typeEquivalent(that: Data): Boolean =
+  private[chisel3] override def typeEquivalent(that: Data): Boolean =
     that.isInstanceOf[UInt] && this.width == that.width
 
-  private[core] override def cloneTypeWidth(w: Width): this.type =
+  private[chisel3] override def cloneTypeWidth(w: Width): this.type =
     new UInt(w).asInstanceOf[this.type]
 
   // TODO: refactor to share documentation with Num or add independent scaladoc
@@ -916,7 +916,7 @@ sealed class UInt private[core] (width: Width) extends Bits(width) with Num[UInt
     }
   }
 
-  private[core] override def connectFromBits(that: Bits)(implicit sourceInfo: SourceInfo,
+  private[chisel3] override def connectFromBits(that: Bits)(implicit sourceInfo: SourceInfo,
       compileOptions: CompileOptions): Unit = {
     this := that.asUInt
   }
@@ -926,7 +926,7 @@ sealed class UInt private[core] (width: Width) extends Bits(width) with Num[UInt
 }
 
 // This is currently a factory because both Bits and UInt inherit it.
-trait UIntFactory {
+trait UIntFactoryBase {
   /** Create a UInt type with inferred width. */
   def apply(): UInt = apply(Width())
   /** Create a UInt port with specified width. */
@@ -950,9 +950,6 @@ trait UIntFactory {
   }
 }
 
-object UInt extends UIntFactory
-object Bits extends UIntFactory
-
 /** A data type for signed integers, represented as a binary bitvector. Defines arithmetic operations between other
   * integer types.
   *
@@ -961,7 +958,7 @@ object Bits extends UIntFactory
   * @define expandingWidth @note The width of the returned $coll is `width of this` + `1`.
   * @define constantWidth  @note The width of the returned $coll is unchanged, i.e., `width of this`.
   */
-sealed class SInt private[core] (width: Width) extends Bits(width) with Num[SInt] {
+sealed class SInt private[chisel3] (width: Width) extends Bits(width) with Num[SInt] {
   override def toString: String = {
     val bindingString = litOption match {
       case Some(value) => s"($value)"
@@ -970,10 +967,10 @@ sealed class SInt private[core] (width: Width) extends Bits(width) with Num[SInt
     s"SInt$width$bindingString"
   }
 
-  private[core] override def typeEquivalent(that: Data): Boolean =
+  private[chisel3] override def typeEquivalent(that: Data): Boolean =
     this.getClass == that.getClass && this.width == that.width  // TODO: should this be true for unspecified widths?
 
-  private[core] override def cloneTypeWidth(w: Width): this.type =
+  private[chisel3] override def cloneTypeWidth(w: Width): this.type =
     new SInt(w).asInstanceOf[this.type]
 
   /** Unary negation (expanding width)
@@ -1177,12 +1174,12 @@ sealed class SInt private[core] (width: Width) extends Bits(width) with Num[SInt
     }
   }
 
-  private[core] override def connectFromBits(that: Bits)(implicit sourceInfo: SourceInfo, compileOptions: CompileOptions) {
+  private[chisel3] override def connectFromBits(that: Bits)(implicit sourceInfo: SourceInfo, compileOptions: CompileOptions) {
     this := that.asSInt
   }
 }
 
-trait SIntFactory {
+trait SIntFactoryBase {
   /** Create an SInt type with inferred width. */
   def apply(): SInt = apply(Width())
   /** Create a SInt type or port with fixed width. */
@@ -1205,7 +1202,7 @@ trait SIntFactory {
   }
 }
 
-object SInt extends SIntFactory
+object SInt extends SIntFactoryBase
 
 sealed trait Reset extends Element with ToBoolable
 
@@ -1225,7 +1222,7 @@ sealed class Bool() extends UInt(1.W) with Reset {
     s"Bool$bindingString"
   }
 
-  private[core] override def cloneTypeWidth(w: Width): this.type = {
+  private[chisel3] override def cloneTypeWidth(w: Width): this.type = {
     require(!w.known || w.get == 1)
     new Bool().asInstanceOf[this.type]
   }
@@ -1312,7 +1309,7 @@ sealed class Bool() extends UInt(1.W) with Reset {
   def do_asClock(implicit sourceInfo: SourceInfo, compileOptions: CompileOptions): Clock = pushOp(DefPrim(sourceInfo, Clock(), AsClockOp, ref))
 }
 
-trait BoolFactory {
+trait BoolFactoryBase {
   /** Creates an empty Bool.
    */
   def apply(): Bool = new Bool()
@@ -1327,8 +1324,9 @@ trait BoolFactory {
   }
 }
 
-object Bool extends BoolFactory
+object Bool extends BoolFactoryBase
 
+package experimental {
 //scalastyle:off number.of.methods
 /** A sealed class representing a fixed point number that has a bit width and a binary point The width and binary point
   * may be inferred.
@@ -1339,13 +1337,16 @@ object Bool extends BoolFactory
   * @param binaryPoint the position of the binary point with respect to the right most bit of the width currently this
   *                    should be positive but it is hoped to soon support negative points and thus use this field as a
   *                    simple exponent
-  * @define coll [[FixedPoint]]
-  * @define numType $coll
+  * @define coll           [[FixedPoint]]
+  * @define numType        $coll
   * @define expandingWidth @note The width of the returned $coll is `width of this` + `1`.
   * @define constantWidth  @note The width of the returned $coll is unchanged, i.e., `width of this`.
   */
-sealed class FixedPoint private (width: Width, val binaryPoint: BinaryPoint)
-    extends Bits(width) with Num[FixedPoint] {
+sealed class FixedPoint private(width: Width, val binaryPoint: BinaryPoint)
+  extends Bits(width) with Num[FixedPoint] {
+//      import FixedPoint._
+  import FixedPoint.Implicits._
+
   override def toString: String = {
     val bindingString = litToDoubleOption match {
       case Some(value) => s"($value)"
@@ -1354,16 +1355,16 @@ sealed class FixedPoint private (width: Width, val binaryPoint: BinaryPoint)
     s"FixedPoint$width$binaryPoint$bindingString"
   }
 
-  private[core] override def typeEquivalent(that: Data): Boolean = that match {
-    case that: FixedPoint => this.width == that.width && this.binaryPoint == that.binaryPoint  // TODO: should this be true for unspecified widths?
+  private[chisel3] override def typeEquivalent(that: Data): Boolean = that match {
+    case that: FixedPoint => this.width == that.width && this.binaryPoint == that.binaryPoint // TODO: should this be true for unspecified widths?
     case _ => false
   }
 
-  private[core] override def cloneTypeWidth(w: Width): this.type =
+  private[chisel3] override def cloneTypeWidth(w: Width): this.type =
     new FixedPoint(w, binaryPoint).asInstanceOf[this.type]
 
-  override def connect (that: Data)(implicit sourceInfo: SourceInfo, connectCompileOptions: CompileOptions): Unit = that match {
-    case _: FixedPoint|DontCare => super.connect(that)
+  override def connect(that: Data)(implicit sourceInfo: SourceInfo, connectCompileOptions: CompileOptions): Unit = that match {
+    case _: FixedPoint | DontCare => super.connect(that)
     case _ => this badConnect that
   }
 
@@ -1380,35 +1381,40 @@ sealed class FixedPoint private (width: Width, val binaryPoint: BinaryPoint)
   /** Unary negation (expanding width)
     *
     * @return a hardware $coll equal to zero minus this $coll
-    * $expandingWidth
+    *         $expandingWidth
     * @group Arithmetic
     */
-  final def unary_- (): FixedPoint = macro SourceInfoTransform.noArg
+  final def unary_-(): FixedPoint = macro SourceInfoTransform.noArg
 
   /** Unary negation (constant width)
     *
     * @return a hardware $coll equal to zero minus `this` shifted right by one
-    * $constantWidth
+    *         $constantWidth
     * @group Arithmetic
     */
-  final def unary_-% (): FixedPoint = macro SourceInfoTransform.noArg
+  final def unary_-%(): FixedPoint = macro SourceInfoTransform.noArg
 
   /** @group SourceInfoTransformMacro */
-  def unary_- (implicit sourceInfo: SourceInfo, compileOptions: CompileOptions): FixedPoint = FixedPoint.fromBigInt(0) - this
+  def unary_-(implicit sourceInfo: SourceInfo, compileOptions: CompileOptions): FixedPoint = FixedPoint.fromBigInt(0) - this
+
   /** @group SourceInfoTransformMacro */
-  def unary_-% (implicit sourceInfo: SourceInfo, compileOptions: CompileOptions): FixedPoint = FixedPoint.fromBigInt(0) -% this
+  def unary_-%(implicit sourceInfo: SourceInfo, compileOptions: CompileOptions): FixedPoint = FixedPoint.fromBigInt(0) -% this
 
   /** add (default - no growth) operator */
-  override def do_+ (that: FixedPoint)(implicit sourceInfo: SourceInfo, compileOptions: CompileOptions): FixedPoint =
+  override def do_+(that: FixedPoint)(implicit sourceInfo: SourceInfo, compileOptions: CompileOptions): FixedPoint =
     this +% that
+
   /** subtract (default - no growth) operator */
-  override def do_- (that: FixedPoint)(implicit sourceInfo: SourceInfo, compileOptions: CompileOptions): FixedPoint =
+  override def do_-(that: FixedPoint)(implicit sourceInfo: SourceInfo, compileOptions: CompileOptions): FixedPoint =
     this -% that
-  override def do_* (that: FixedPoint)(implicit sourceInfo: SourceInfo, compileOptions: CompileOptions): FixedPoint =
+
+  override def do_*(that: FixedPoint)(implicit sourceInfo: SourceInfo, compileOptions: CompileOptions): FixedPoint =
     binop(sourceInfo, FixedPoint(this.width + that.width, this.binaryPoint + that.binaryPoint), TimesOp, that)
-  override def do_/ (that: FixedPoint)(implicit sourceInfo: SourceInfo, compileOptions: CompileOptions): FixedPoint =
+
+  override def do_/(that: FixedPoint)(implicit sourceInfo: SourceInfo, compileOptions: CompileOptions): FixedPoint =
     throwException(s"division is illegal on FixedPoint types")
-  override def do_% (that: FixedPoint)(implicit sourceInfo: SourceInfo, compileOptions: CompileOptions): FixedPoint =
+
+  override def do_%(that: FixedPoint)(implicit sourceInfo: SourceInfo, compileOptions: CompileOptions): FixedPoint =
     throwException(s"mod is illegal on FixedPoint types")
 
 
@@ -1416,66 +1422,68 @@ sealed class FixedPoint private (width: Width, val binaryPoint: BinaryPoint)
     *
     * @param that a hardware [[UInt]]
     * @return the product of this $coll and `that`
-    * $sumWidth
-    * $singleCycleMul
+    *         $sumWidth
+    *         $singleCycleMul
     * @group Arithmetic
     */
-  final def * (that: UInt): FixedPoint = macro SourceInfoTransform.thatArg
+  final def *(that: UInt): FixedPoint = macro SourceInfoTransform.thatArg
+
   /** @group SourceInfoTransformMacro */
-  def do_* (that: UInt)(implicit sourceInfo: SourceInfo, compileOptions: CompileOptions): FixedPoint =
+  def do_*(that: UInt)(implicit sourceInfo: SourceInfo, compileOptions: CompileOptions): FixedPoint =
     binop(sourceInfo, FixedPoint(this.width + that.width, binaryPoint), TimesOp, that)
 
   /** Multiplication operator
     *
     * @param that a hardware [[SInt]]
     * @return the product of this $coll and `that`
-    * $sumWidth
-    * $singleCycleMul
+    *         $sumWidth
+    *         $singleCycleMul
     * @group Arithmetic
     */
-  final def * (that: SInt): FixedPoint = macro SourceInfoTransform.thatArg
+  final def *(that: SInt): FixedPoint = macro SourceInfoTransform.thatArg
+
   /** @group SourceInfoTransformMacro */
-  def do_* (that: SInt)(implicit sourceInfo: SourceInfo, compileOptions: CompileOptions): FixedPoint =
+  def do_*(that: SInt)(implicit sourceInfo: SourceInfo, compileOptions: CompileOptions): FixedPoint =
     binop(sourceInfo, FixedPoint(this.width + that.width, binaryPoint), TimesOp, that)
 
   /** Addition operator (expanding width)
     *
     * @param that a hardware $coll
     * @return the sum of this $coll and `that`
-    * $maxWidthPlusOne
+    *         $maxWidthPlusOne
     * @group Arithmetic
     */
-  final def +& (that: FixedPoint): FixedPoint = macro SourceInfoTransform.thatArg
+  final def +&(that: FixedPoint): FixedPoint = macro SourceInfoTransform.thatArg
 
   /** Addition operator (constant width)
     *
     * @param that a hardware $coll
     * @return the sum of this $coll and `that` shifted right by one
-    * $maxWidth
+    *         $maxWidth
     * @group Arithmetic
     */
-  final def +% (that: FixedPoint): FixedPoint = macro SourceInfoTransform.thatArg
+  final def +%(that: FixedPoint): FixedPoint = macro SourceInfoTransform.thatArg
 
   /** Subtraction operator (increasing width)
     *
     * @param that a hardware $coll
     * @return the difference of this $coll less `that`
-    * $maxWidthPlusOne
+    *         $maxWidthPlusOne
     * @group Arithmetic
     */
-  final def -& (that: FixedPoint): FixedPoint = macro SourceInfoTransform.thatArg
+  final def -&(that: FixedPoint): FixedPoint = macro SourceInfoTransform.thatArg
 
   /** Subtraction operator (constant width)
     *
     * @param that a hardware $coll
     * @return the difference of this $coll less `that` shifted right by one
-    * $maxWidth
+    *         $maxWidth
     * @group Arithmetic
     */
-  final def -% (that: FixedPoint): FixedPoint = macro SourceInfoTransform.thatArg
+  final def -%(that: FixedPoint): FixedPoint = macro SourceInfoTransform.thatArg
 
   /** @group SourceInfoTransformMacro */
-  def do_+& (that: FixedPoint)(implicit sourceInfo: SourceInfo, compileOptions: CompileOptions): FixedPoint = {
+  def do_+&(that: FixedPoint)(implicit sourceInfo: SourceInfo, compileOptions: CompileOptions): FixedPoint = {
     (this.width, that.width, this.binaryPoint, that.binaryPoint) match {
       case (KnownWidth(thisWidth), KnownWidth(thatWidth), KnownBinaryPoint(thisBP), KnownBinaryPoint(thatBP)) =>
         val thisIntWidth = thisWidth - thisBP
@@ -1490,10 +1498,11 @@ sealed class FixedPoint private (width: Width, val binaryPoint: BinaryPoint)
   }
 
   /** @group SourceInfoTransformMacro */
-  def do_+% (that: FixedPoint)(implicit sourceInfo: SourceInfo, compileOptions: CompileOptions): FixedPoint =
+  def do_+%(that: FixedPoint)(implicit sourceInfo: SourceInfo, compileOptions: CompileOptions): FixedPoint =
     (this +& that).tail(1).asFixedPoint(this.binaryPoint max that.binaryPoint)
+
   /** @group SourceInfoTransformMacro */
-  def do_-& (that: FixedPoint)(implicit sourceInfo: SourceInfo, compileOptions: CompileOptions): FixedPoint = {
+  def do_-&(that: FixedPoint)(implicit sourceInfo: SourceInfo, compileOptions: CompileOptions): FixedPoint = {
     (this.width, that.width, this.binaryPoint, that.binaryPoint) match {
       case (KnownWidth(thisWidth), KnownWidth(thatWidth), KnownBinaryPoint(thisBP), KnownBinaryPoint(thatBP)) =>
         val thisIntWidth = thisWidth - thisBP
@@ -1508,44 +1517,46 @@ sealed class FixedPoint private (width: Width, val binaryPoint: BinaryPoint)
   }
 
   /** @group SourceInfoTransformMacro */
-  def do_-% (that: FixedPoint)(implicit sourceInfo: SourceInfo, compileOptions: CompileOptions): FixedPoint =
+  def do_-%(that: FixedPoint)(implicit sourceInfo: SourceInfo, compileOptions: CompileOptions): FixedPoint =
     (this -& that).tail(1).asFixedPoint(this.binaryPoint max that.binaryPoint)
 
   /** Bitwise and operator
     *
     * @param that a hardware $coll
     * @return the bitwise and of  this $coll and `that`
-    * $maxWidth
+    *         $maxWidth
     * @group Bitwise
     */
-  final def & (that: FixedPoint): FixedPoint = macro SourceInfoTransform.thatArg
+  final def &(that: FixedPoint): FixedPoint = macro SourceInfoTransform.thatArg
 
   /** Bitwise or operator
     *
     * @param that a hardware $coll
     * @return the bitwise or of this $coll and `that`
-    * $maxWidth
+    *         $maxWidth
     * @group Bitwise
     */
-  final def | (that: FixedPoint): FixedPoint = macro SourceInfoTransform.thatArg
+  final def |(that: FixedPoint): FixedPoint = macro SourceInfoTransform.thatArg
 
   /** Bitwise exclusive or (xor) operator
     *
     * @param that a hardware $coll
     * @return the bitwise xor of this $coll and `that`
-    * $maxWidth
+    *         $maxWidth
     * @group Bitwise
     */
-  final def ^ (that: FixedPoint): FixedPoint = macro SourceInfoTransform.thatArg
+  final def ^(that: FixedPoint): FixedPoint = macro SourceInfoTransform.thatArg
 
   /** @group SourceInfoTransformMacro */
-  def do_& (that: FixedPoint)(implicit sourceInfo: SourceInfo, compileOptions: CompileOptions): FixedPoint =
+  def do_&(that: FixedPoint)(implicit sourceInfo: SourceInfo, compileOptions: CompileOptions): FixedPoint =
     throwException(s"And is illegal between $this and $that")
+
   /** @group SourceInfoTransformMacro */
-  def do_| (that: FixedPoint)(implicit sourceInfo: SourceInfo, compileOptions: CompileOptions): FixedPoint =
+  def do_|(that: FixedPoint)(implicit sourceInfo: SourceInfo, compileOptions: CompileOptions): FixedPoint =
     throwException(s"Or is illegal between $this and $that")
+
   /** @group SourceInfoTransformMacro */
-  def do_^ (that: FixedPoint)(implicit sourceInfo: SourceInfo, compileOptions: CompileOptions): FixedPoint =
+  def do_^(that: FixedPoint)(implicit sourceInfo: SourceInfo, compileOptions: CompileOptions): FixedPoint =
     throwException(s"Xor is illegal between $this and $that")
 
   final def setBinaryPoint(that: Int): FixedPoint = macro SourceInfoTransform.thatArg
@@ -1559,16 +1570,19 @@ sealed class FixedPoint private (width: Width, val binaryPoint: BinaryPoint)
   }
 
   /** @group SourceInfoTransformMacro */
-  def do_unary_~ (implicit sourceInfo: SourceInfo, compileOptions: CompileOptions): FixedPoint =
+  def do_unary_~(implicit sourceInfo: SourceInfo, compileOptions: CompileOptions): FixedPoint =
     throwException(s"Not is illegal on $this")
 
   // TODO(chick): Consider comparison with UInt and SInt
-  override def do_< (that: FixedPoint)(implicit sourceInfo: SourceInfo, compileOptions: CompileOptions): Bool = compop(sourceInfo, LessOp, that)
-  override def do_> (that: FixedPoint)(implicit sourceInfo: SourceInfo, compileOptions: CompileOptions): Bool = compop(sourceInfo, GreaterOp, that)
-  override def do_<= (that: FixedPoint)(implicit sourceInfo: SourceInfo, compileOptions: CompileOptions): Bool = compop(sourceInfo, LessEqOp, that)
-  override def do_>= (that: FixedPoint)(implicit sourceInfo: SourceInfo, compileOptions: CompileOptions): Bool = compop(sourceInfo, GreaterEqOp, that)
+  override def do_<(that: FixedPoint)(implicit sourceInfo: SourceInfo, compileOptions: CompileOptions): Bool = compop(sourceInfo, LessOp, that)
 
-  final def != (that: FixedPoint): Bool = macro SourceInfoTransform.thatArg
+  override def do_>(that: FixedPoint)(implicit sourceInfo: SourceInfo, compileOptions: CompileOptions): Bool = compop(sourceInfo, GreaterOp, that)
+
+  override def do_<=(that: FixedPoint)(implicit sourceInfo: SourceInfo, compileOptions: CompileOptions): Bool = compop(sourceInfo, LessEqOp, that)
+
+  override def do_>=(that: FixedPoint)(implicit sourceInfo: SourceInfo, compileOptions: CompileOptions): Bool = compop(sourceInfo, GreaterEqOp, that)
+
+  final def !=(that: FixedPoint): Bool = macro SourceInfoTransform.thatArg
 
   /** Dynamic not equals operator
     *
@@ -1576,7 +1590,7 @@ sealed class FixedPoint private (width: Width, val binaryPoint: BinaryPoint)
     * @return a hardware [[Bool]] asserted if this $coll is not equal to `that`
     * @group Comparison
     */
-  final def =/= (that: FixedPoint): Bool = macro SourceInfoTransform.thatArg
+  final def =/=(that: FixedPoint): Bool = macro SourceInfoTransform.thatArg
 
   /** Dynamic equals operator
     *
@@ -1584,28 +1598,30 @@ sealed class FixedPoint private (width: Width, val binaryPoint: BinaryPoint)
     * @return a hardware [[Bool]] asserted if this $coll is equal to `that`
     * @group Comparison
     */
-  final def === (that: FixedPoint): Bool = macro SourceInfoTransform.thatArg
+  final def ===(that: FixedPoint): Bool = macro SourceInfoTransform.thatArg
 
   /** @group SourceInfoTransformMacro */
-  def do_!= (that: FixedPoint)(implicit sourceInfo: SourceInfo, compileOptions: CompileOptions): Bool = compop(sourceInfo, NotEqualOp, that)
+  def do_!=(that: FixedPoint)(implicit sourceInfo: SourceInfo, compileOptions: CompileOptions): Bool = compop(sourceInfo, NotEqualOp, that)
+
   /** @group SourceInfoTransformMacro */
-  def do_=/= (that: FixedPoint)(implicit sourceInfo: SourceInfo, compileOptions: CompileOptions): Bool = compop(sourceInfo, NotEqualOp, that)
+  def do_=/=(that: FixedPoint)(implicit sourceInfo: SourceInfo, compileOptions: CompileOptions): Bool = compop(sourceInfo, NotEqualOp, that)
+
   /** @group SourceInfoTransformMacro */
-  def do_=== (that: FixedPoint)(implicit sourceInfo: SourceInfo, compileOptions: CompileOptions): Bool = compop(sourceInfo, EqualOp, that)
+  def do_===(that: FixedPoint)(implicit sourceInfo: SourceInfo, compileOptions: CompileOptions): Bool = compop(sourceInfo, EqualOp, that)
 
   def do_abs(implicit sourceInfo: SourceInfo, compileOptions: CompileOptions): FixedPoint = {
     // TODO: remove this once we have CompileOptions threaded through the macro system.
-    import chisel3.core.ExplicitCompileOptions.NotStrict
     Mux(this < 0.F(0.BP), 0.F(0.BP) - this, this)
   }
 
-  override def do_<< (that: Int)(implicit sourceInfo: SourceInfo, compileOptions: CompileOptions): FixedPoint =
+  override def do_<<(that: Int)(implicit sourceInfo: SourceInfo, compileOptions: CompileOptions): FixedPoint =
     binop(sourceInfo, FixedPoint(this.width + that, this.binaryPoint), ShiftLeftOp, validateShiftAmount(that))
   override def do_<< (that: BigInt)(implicit sourceInfo: SourceInfo, compileOptions: CompileOptions): FixedPoint =
     (this << castToInt(that, "Shift amount")).asFixedPoint(this.binaryPoint)
   override def do_<< (that: UInt)(implicit sourceInfo: SourceInfo, compileOptions: CompileOptions): FixedPoint =
     binop(sourceInfo, FixedPoint(this.width.dynamicShiftLeft(that.width), this.binaryPoint), DynamicShiftLeftOp, that)
-  override def do_>> (that: Int)(implicit sourceInfo: SourceInfo, compileOptions: CompileOptions): FixedPoint =
+
+  override def do_>>(that: Int)(implicit sourceInfo: SourceInfo, compileOptions: CompileOptions): FixedPoint =
     binop(sourceInfo, FixedPoint(this.width.shiftRight(that), this.binaryPoint), ShiftRightOp, validateShiftAmount(that))
   override def do_>> (that: BigInt)(implicit sourceInfo: SourceInfo, compileOptions: CompileOptions): FixedPoint =
     (this >> castToInt(that, "Shift amount")).asFixedPoint(this.binaryPoint)
@@ -1613,6 +1629,7 @@ sealed class FixedPoint private (width: Width, val binaryPoint: BinaryPoint)
     binop(sourceInfo, FixedPoint(this.width, this.binaryPoint), DynamicShiftRightOp, that)
 
   override def do_asUInt(implicit sourceInfo: SourceInfo, compileOptions: CompileOptions): UInt = pushOp(DefPrim(sourceInfo, UInt(this.width), AsUIntOp, ref))
+
   override def do_asSInt(implicit sourceInfo: SourceInfo, compileOptions: CompileOptions): SInt = pushOp(DefPrim(sourceInfo, SInt(this.width), AsSIntOp, ref))
 
   override def do_asFixedPoint(binaryPoint: BinaryPoint)(implicit sourceInfo: SourceInfo, compileOptions: CompileOptions): FixedPoint = {
@@ -1625,19 +1642,21 @@ sealed class FixedPoint private (width: Width, val binaryPoint: BinaryPoint)
     }
   }
 
-  private[core] override def connectFromBits(that: Bits)(implicit sourceInfo: SourceInfo, compileOptions: CompileOptions) {
+  private[chisel3] override def connectFromBits(that: Bits)(implicit sourceInfo: SourceInfo, compileOptions: CompileOptions) {
     // TODO: redefine as just asFixedPoint on that, where FixedPoint.asFixedPoint just works.
     this := (that match {
       case fp: FixedPoint => fp.asSInt.asFixedPoint(this.binaryPoint)
       case _ => that.asFixedPoint(this.binaryPoint)
     })
   }
+
   //TODO(chick): Consider "convert" as an arithmetic conversion to UInt/SInt
 }
 
 /** Use PrivateObject to force users to specify width and binaryPoint by name
- */
+  */
 sealed trait PrivateType
+
 private case object PrivateObject extends PrivateType
 
 /**
@@ -1645,6 +1664,8 @@ private case object PrivateObject extends PrivateType
   * IMPORTANT: The API provided here is experimental and may change in the future.
   */
 object FixedPoint {
+
+  import FixedPoint.Implicits._
   /** Create an FixedPoint type with inferred width. */
   def apply(): FixedPoint = apply(Width(), BinaryPoint())
 
@@ -1662,22 +1683,25 @@ object FixedPoint {
   def fromBigInt(value: BigInt, width: Width, binaryPoint: BinaryPoint): FixedPoint = {
     apply(value, width, binaryPoint)
   }
+
   /** Create an FixedPoint literal with inferred width from BigInt.
     * Use PrivateObject to force users to specify width and binaryPoint by name
     */
   def fromBigInt(value: BigInt, binaryPoint: BinaryPoint = 0.BP): FixedPoint = {
     apply(value, Width(), binaryPoint)
   }
+
   /** Create an FixedPoint literal with inferred width from BigInt.
     * Use PrivateObject to force users to specify width and binaryPoint by name
     */
   def fromBigInt(value: BigInt, width: Int, binaryPoint: Int): FixedPoint =
-    if(width == -1) {
+    if (width == -1) {
       apply(value, Width(), BinaryPoint(binaryPoint))
     }
     else {
       apply(value, Width(width), BinaryPoint(binaryPoint))
     }
+
   /** Create an FixedPoint literal with inferred width from Double.
     * Use PrivateObject to force users to specify width and binaryPoint by name
     */
@@ -1689,6 +1713,7 @@ object FixedPoint {
       toBigInt(value, binaryPoint), width = width, binaryPoint = binaryPoint
     )
   }
+
   /** Create an FixedPoint literal with inferred width from Double.
     * Use PrivateObject to force users to specify width and binaryPoint by name
     */
@@ -1708,30 +1733,54 @@ object FixedPoint {
 
   /**
     * How to create a bigint from a double with a specific binaryPoint
-    * @param x               a double value
-    * @param binaryPoint     a binaryPoint that you would like to use
+    *
+    * @param x           a double value
+    * @param binaryPoint a binaryPoint that you would like to use
     * @return
     */
-  def toBigInt(x: Double, binaryPoint    : Int): BigInt = {
-    val multiplier = math.pow(2,binaryPoint    )
+  def toBigInt(x: Double, binaryPoint: Int): BigInt = {
+    val multiplier = math.pow(2, binaryPoint)
     val result = BigInt(math.round(x * multiplier))
     result
   }
 
   /**
     * converts a bigInt with the given binaryPoint into the double representation
-    * @param i            a bigint
-    * @param binaryPoint  the implied binaryPoint of @i
+    *
+    * @param i           a bigint
+    * @param binaryPoint the implied binaryPoint of @i
     * @return
     */
-  def toDouble(i: BigInt, binaryPoint    : Int): Double = {
-    val multiplier = math.pow(2,binaryPoint)
+  def toDouble(i: BigInt, binaryPoint: Int): Double = {
+    val multiplier = math.pow(2, binaryPoint)
     val result = i.toDouble / multiplier
     result
   }
 
-}
+  object Implicits {
 
+//      implicit class fromDoubleToLiteral(val double: Double) extends AnyVal {
+    implicit class fromDoubleToLiteral(double: Double) {
+      @deprecated("Use notation <double>.F(<binary_point>.BP) instead", "chisel3")
+      def F(binaryPoint: Int): FixedPoint = FixedPoint.fromDouble(double, binaryPoint = binaryPoint)
+
+      def F(binaryPoint: BinaryPoint): FixedPoint = {
+        FixedPoint.fromDouble(double, Width(), binaryPoint)
+      }
+
+      def F(width: Width, binaryPoint: BinaryPoint): FixedPoint = {
+        FixedPoint.fromDouble(double, width, binaryPoint)
+      }
+    }
+
+//      implicit class fromIntToBinaryPoint(val int: Int) extends AnyVal {
+    implicit class fromIntToBinaryPoint(int: Int) {
+      def BP: BinaryPoint = BinaryPoint(int) // scalastyle:ignore method.name
+    }
+
+  }
+
+}
 /** Data type for representing bidirectional bitvectors of a given width
   *
   * Analog support is limited to allowing wiring up of Verilog BlackBoxes with bidirectional (inout)
@@ -1754,7 +1803,7 @@ final class Analog private (private[chisel3] val width: Width) extends Element {
     s"Analog$width$bindingToString"
   }
 
-  private[core] override def typeEquivalent(that: Data): Boolean =
+  private[chisel3] override def typeEquivalent(that: Data): Boolean =
     that.isInstanceOf[Analog] && this.width == that.width
 
   override def litOption: Option[BigInt] = None
@@ -1764,7 +1813,7 @@ final class Analog private (private[chisel3] val width: Width) extends Element {
   // Used to enforce single bulk connect of Analog types, multi-attach is still okay
   // Note that this really means 1 bulk connect per Module because a port can
   //   be connected in the parent module as well
-  private[core] val biConnectLocs = mutable.Map.empty[RawModule, SourceInfo]
+  private[chisel3] val biConnectLocs = mutable.Map.empty[RawModule, SourceInfo]
 
   // Define setter/getter pairing
   // Analog can only be bound to Ports and Wires (and Unbound)
@@ -1790,7 +1839,7 @@ final class Analog private (private[chisel3] val width: Width) extends Element {
   override def do_asUInt(implicit sourceInfo: SourceInfo, compileOptions: CompileOptions): UInt =
     throwException("Analog does not support asUInt")
 
-  private[core] override def connectFromBits(that: Bits)(implicit sourceInfo: SourceInfo,
+  private[chisel3] override def connectFromBits(that: Bits)(implicit sourceInfo: SourceInfo,
       compileOptions: CompileOptions): Unit = {
     throwException("Analog does not support connectFromBits")
   }
@@ -1803,4 +1852,5 @@ final class Analog private (private[chisel3] val width: Width) extends Element {
   */
 object Analog {
   def apply(width: Width): Analog = new Analog(width)
+}
 }

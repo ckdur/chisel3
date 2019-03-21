@@ -1,14 +1,14 @@
 // See LICENSE for license details.
 
-package chisel3.core
-
-import scala.language.existentials
+package chisel3.experimental
 
 import chisel3.internal.{Builder, InstanceId}
-import chisel3.core.ImplicitModule
+import chisel3.{CompileOptions, Data}
 import firrtl.Transform
-import firrtl.annotations.{Annotation, CircuitName, ComponentName, ModuleName}
+import firrtl.annotations.Annotation
 import firrtl.transforms.{DontTouchAnnotation, NoDedupAnnotation}
+
+import scala.language.existentials
 
 /** Interface for Annotations in Chisel
   *

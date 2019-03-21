@@ -2,9 +2,8 @@
 
 package chiselTests
 
-import chisel3._
-import chisel3.core.IgnoreSeqInBundle
 import chisel3.testers.BasicTester
+import chisel3.{IgnoreSeqInBundle, _}
 
 trait BundleSpecUtils {
   class BundleFooBar extends Bundle {

@@ -2,9 +2,8 @@
 
 package chiselTests
 
+import chisel3.Binding.BindingException
 import chisel3._
-import chisel3.experimental.RawModule
-import chisel3.core.Binding.BindingException
 import chisel3.testers.BasicTester
 import chisel3.util._
 import org.scalacheck.Shrink

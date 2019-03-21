@@ -4,16 +4,15 @@ package chisel3.internal
 
 import chisel3.internal.firrtl.{UnknownWidth, Width}
 import chisel3.internal.sourceinfo.SourceInfo
-//import chisel3.{Bits, CompileOptions, Data, Element, PString, Printable, SpecifiedDirection, UInt, internal}
 import chisel3._
 
 /** RHS (source) for Invalidate API.
   * Causes connection logic to emit a DefInvalid when connected to an output port (or wire).
   */
-private[chisel3] object DontCare extends Element {
+private[chisel3] object InternalDontCare extends Element {
   // This object should be initialized before we execute any user code that refers to it,
   //  otherwise this "Chisel" object will end up on the UserModule's id list.
-  // We make it private to chisel3 so it has to be accessed through the package object.
+  // We make it private to chisel3 (and name it `InternalDontCare` so it has to be accessed through the package object.
 
   private[chisel3] override val width: Width = UnknownWidth()
 
